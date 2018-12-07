@@ -3,13 +3,13 @@ package com.banano.kaliumwallet.ui.send;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.databinding.DataBindingUtil;
+import androidx.databinding.DataBindingUtil;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.core.content.ContextCompat;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
@@ -25,7 +25,6 @@ import com.banano.kaliumwallet.R;
 import com.banano.kaliumwallet.bus.CreatePin;
 import com.banano.kaliumwallet.bus.PinComplete;
 import com.banano.kaliumwallet.bus.RxBus;
-import com.banano.kaliumwallet.bus.SendInvalidAmount;
 import com.banano.kaliumwallet.bus.SocketError;
 import com.banano.kaliumwallet.databinding.FragmentSendConfirmBinding;
 import com.banano.kaliumwallet.model.Address;
@@ -72,6 +71,7 @@ public class SendConfirmDialogFragment extends BaseDialogFragment {
     private Activity mActivity;
     private Fragment mTargetFragment;
     private int retryCount = 0;
+    private boolean maxSend = false;
 
     /**
      * Create new instance of the dialog fragment (handy pattern if any data needs to be passed to it)
@@ -105,7 +105,15 @@ public class SendConfirmDialogFragment extends BaseDialogFragment {
         }
 
         String destination = getArguments().getString("destination");
-        String amount = String.format(Locale.ENGLISH, "%.2f", Float.parseFloat(getArguments().getString("amount")));
+        float sendAmountF =  Float.parseFloat(getArguments().getString("amount"));
+        String amount;
+        if (sendAmountF != 0) {
+            maxSend = false;
+            amount = String.format(Locale.ENGLISH, "%.2f", sendAmountF);
+        } else {
+            maxSend = true;
+            amount = wallet.getAccountBalanceBananoNoComma();
+        }
 
         // subscribe to bus
         RxBus.get().register(this);
@@ -216,23 +224,14 @@ public class SendConfirmDialogFragment extends BaseDialogFragment {
     private void executeSend() {
         retryCount++;
         showLoadingOverlay();
-        BigInteger sendAmount = NumberUtil.getAmountAsRawBigInteger(wallet.getSendBananoAmount());
+        BigInteger sendAmount;
+        if (maxSend) {
+            sendAmount = new BigInteger("0");
+        } else {
+            sendAmount = NumberUtil.getAmountAsRawBigInteger(wallet.getSendBananoAmount());
+        }
 
         accountService.requestSend(wallet.getFrontierBlock(), address, sendAmount);
-    }
-
-    /**
-     * Event that occurs if an amount entered is invalid
-     *
-     * @param sendInvalidAmount Send Invalid Amount event
-     */
-    @Subscribe
-    public void receiveInvalidAmount(SendInvalidAmount sendInvalidAmount) {
-        hideLoadingOverlay();
-        if (mTargetFragment != null) {
-            mTargetFragment.onActivityResult(getTargetRequestCode(), SEND_FAILED_AMOUNT, mActivity.getIntent());
-        }
-        dismiss();
     }
 
     /**

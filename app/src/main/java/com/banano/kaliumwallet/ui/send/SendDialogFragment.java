@@ -3,13 +3,13 @@ package com.banano.kaliumwallet.ui.send;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.databinding.DataBindingUtil;
+import androidx.databinding.DataBindingUtil;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.v7.widget.LinearLayoutManager;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
@@ -45,15 +45,16 @@ import com.banano.kaliumwallet.util.NumberUtil;
 import com.banano.kaliumwallet.util.SharedPreferencesUtil;
 import com.hwangjr.rxbus.annotation.Subscribe;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Locale;
 
 import javax.inject.Inject;
 
 import io.realm.Case;
 import io.realm.Realm;
 import io.realm.RealmQuery;
+import timber.log.Timber;
 
 import static android.app.Activity.RESULT_OK;
 import static android.content.ClipDescription.MIMETYPE_TEXT_PLAIN;
@@ -75,6 +76,7 @@ public class SendDialogFragment extends BaseDialogFragment {
     private Address address;
     private Activity mActivity;
     private ContactSelectionAdapter mAdapter;
+    private boolean maxSend = false;
 
     /**
      * Create new instance of the dialog fragment (handy pattern if any data needs to be passed to it)
@@ -100,6 +102,7 @@ public class SendDialogFragment extends BaseDialogFragment {
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         // init dependency injection
         mActivity = getActivity();
+        maxSend = false;
         if (mActivity instanceof ActivityWithComponent) {
             ((ActivityWithComponent) mActivity).getActivityComponent().inject(this);
         }
@@ -281,6 +284,17 @@ public class SendDialogFragment extends BaseDialogFragment {
                 }
                 wallet.setSendBananoAmount(charSequence.toString().trim());
                 binding.setWallet(wallet);
+
+                try {
+                    if (new BigDecimal(charSequence.toString().trim())
+                            .compareTo(new BigDecimal(wallet.getAccountBalanceBananoNoComma())) == 0) {
+                        maxSend = true;
+                    } else {
+                        maxSend = false;
+                    }
+                } catch (NumberFormatException nfe) {
+                    Timber.e(nfe);
+                }
                 hideAmountError();
             }
         });
@@ -439,7 +453,7 @@ public class SendDialogFragment extends BaseDialogFragment {
             showAmountError(R.string.send_amount_error);
             return false;
         }
-        if (sendAmount.compareTo(wallet.getAccountBalanceBananoRaw().toBigInteger()) > 0) {
+        if (new BigDecimal(wallet.getSendBananoAmount()).compareTo(new BigDecimal(wallet.getAccountBalanceBananoNoComma())) > 0) {
             showAmountError(R.string.send_insufficient_balance);
             return false;
         }
@@ -467,7 +481,13 @@ public class SendDialogFragment extends BaseDialogFragment {
 
     private void showSendCompleteDialog() {
         // show complete dialog
-        SendCompleteDialogFragment dialog = SendCompleteDialogFragment.newInstance(binding.sendAddress.getText().toString(), binding.sendAmount.getText().toString());
+        String sendAmount;
+        if (maxSend) {
+            sendAmount = wallet.getAccountBalanceBananoNoComma();
+        } else {
+            sendAmount = wallet.getSendBananoAmount();
+        }
+        SendCompleteDialogFragment dialog = SendCompleteDialogFragment.newInstance(binding.sendAddress.getText().toString(), sendAmount);
         dialog.show(((WindowControl) mActivity).getFragmentUtility().getFragmentManager(),
                 SendCompleteDialogFragment.TAG);
         executePendingTransactions();
@@ -475,7 +495,11 @@ public class SendDialogFragment extends BaseDialogFragment {
 
     private void showSendConfirmDialog() {
         // show send dialog
-        SendConfirmDialogFragment dialog = SendConfirmDialogFragment.newInstance(binding.sendAddress.getText().toString(), binding.sendAmount.getText().toString());
+        String sendAmount = wallet.getSendBananoAmount();
+        if (maxSend) {
+            sendAmount = "0";
+        }
+        SendConfirmDialogFragment dialog = SendConfirmDialogFragment.newInstance(binding.sendAddress.getText().toString(), sendAmount);
         dialog.setTargetFragment(this, SEND_RESULT);
         dialog.show(((WindowControl) mActivity).getFragmentUtility().getFragmentManager(),
                 SendConfirmDialogFragment.TAG);
@@ -490,10 +514,6 @@ public class SendDialogFragment extends BaseDialogFragment {
                 dismiss();
             } else if (resultCode == SEND_FAILED) {
                 UIUtil.showToast(getString(R.string.send_generic_error), getContext());
-            } else if (resultCode == SEND_FAILED_AMOUNT) {
-                wallet.setSendBananoAmount(wallet.getUsableAccountBalanceBanano().toString());
-                binding.setWallet(wallet);
-                showAmountError(R.string.send_amount_error);
             }
         } else if (requestCode == SCAN_RESULT) {
             // Make sure the request was successful
@@ -506,6 +526,8 @@ public class SendDialogFragment extends BaseDialogFragment {
                     // set to scanned value
                     if (address.getAddress() != null) {
                         binding.sendAddress.setText(address.getAddress());
+                        binding.sendAddress.requestFocus();
+                        binding.sendAddress.clearFocus();
                     }
 
                     if (address.getAmount() != null) {
@@ -543,7 +565,7 @@ public class SendDialogFragment extends BaseDialogFragment {
         }
 
         public void onClickMax(View view) {
-            binding.sendAmount.setText(String.format(Locale.ENGLISH, "%.2f", wallet.getUsableAccountBalanceBanano().floatValue()));
+            binding.sendAmount.setText(wallet.getAccountBalanceBananoNoComma());
         }
 
         public void onClickPaste(View view) {
@@ -552,6 +574,8 @@ public class SendDialogFragment extends BaseDialogFragment {
             if (clipboard != null && clipboard.hasPrimaryClip() && clipboard.getPrimaryClipDescription().hasMimeType(MIMETYPE_TEXT_PLAIN)) {
                 Address address = new Address(clipboard.getPrimaryClip().getItemAt(0).getText().toString());
                 binding.sendAddress.setText(address.getAddress());
+                binding.sendAddress.requestFocus();
+                binding.sendAddress.clearFocus();
             }
         }
 

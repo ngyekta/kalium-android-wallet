@@ -14,8 +14,8 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.service.notification.StatusBarNotification;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 
 import com.banano.kaliumwallet.broadcastreceiver.CancelNotificationReceiver;
 import com.banano.kaliumwallet.model.AvailableLanguage;
@@ -52,7 +52,7 @@ public class KaliumMessagingService extends FirebaseMessagingService {
             getBaseContext().getResources().updateConfiguration(config,
                     getBaseContext().getResources().getDisplayMetrics());
         }
-        if (remoteMessage.getData() != null && !MainActivity.appInForeground && sharedPreferencesUtil.getNotificationSetting() != NotificationOption.OFF) {
+        if (remoteMessage.getData() != null && sharedPreferencesUtil.isBackgrounded() && sharedPreferencesUtil.getNotificationSetting() != NotificationOption.OFF) {
             if (Build.VERSION.SDK_INT >=  Build.VERSION_CODES.M) {
                 sendNotification(remoteMessage);
             } else {

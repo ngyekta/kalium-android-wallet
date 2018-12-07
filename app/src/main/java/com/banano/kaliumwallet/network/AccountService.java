@@ -283,10 +283,10 @@ public class AccountService {
 
         if (block.getType().equals(BlockTypes.STATE.toString())) {
             String calculatedHash = KaliumUtil.computeStateHash(
-                    KaliumUtil.addressToPublic(block.getAccount()),
+                    block.getAccount(),
                     block.getPrevious(),
-                    KaliumUtil.addressToPublic(block.getRepresentative()),
-                    NumberUtil.getRawAsHex(block.getBalance()),
+                    block.getRepresentative(),
+                    block.getBalance(),
                     block.getLink());
             if (!blockInfo.getBalance().equals(block.getBalance())) {
                 ExceptionHandler.handle(new Exception("balance in state block doesn't match balance in block info"));
@@ -354,11 +354,15 @@ public class AccountService {
             }
             nextBlock.setPrevious(hash);
             if (nextBlock.getInternal_block_type() == BlockTypes.SEND) {
-                nextBlock.setBalance(
-                        new BigInteger(blockInfo.getBalance())
-                                .subtract(new BigInteger(nextBlock.getSendAmount()))
-                                .toString()
-                );
+                if (nextBlock.getSendAmount().equals("0")) {
+                    nextBlock.setBalance("0");
+                } else {
+                    nextBlock.setBalance(
+                            new BigInteger(blockInfo.getBalance())
+                                    .subtract(new BigInteger(nextBlock.getSendAmount()))
+                                    .toString()
+                    );
+                }
             } else {
                 nextBlock.setBalance(
                         new BigInteger(blockInfo.getBalance())
