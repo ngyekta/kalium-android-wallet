@@ -23,6 +23,9 @@ import com.banano.kaliumwallet.ui.send.SendDialogFragment;
 import com.banano.kaliumwallet.ui.settings.BackupSeedDialogFragment;
 import com.banano.kaliumwallet.ui.settings.ChangeRepDialogFragment;
 import com.banano.kaliumwallet.ui.settings.SettingsFragment;
+import com.banano.kaliumwallet.ui.transfer.TransferCompleteDialogFragment;
+import com.banano.kaliumwallet.ui.transfer.TransferConfirmDialogFragment;
+import com.banano.kaliumwallet.ui.transfer.TransferIntroDialogFragment;
 import com.google.gson.Gson;
 
 import dagger.Component;
@@ -82,4 +85,10 @@ public interface ActivityComponent {
     void inject(SettingsFragment settingsDialogFragment);
 
     void inject(TranDetailsFragment tranDetailsFragment);
+
+    void inject(TransferIntroDialogFragment transferIntroDialogFragment);
+
+    void inject(TransferConfirmDialogFragment transferConfirmDialogFragment);
+
+    void inject(TransferCompleteDialogFragment transferCompleteDialogFragment);
 }

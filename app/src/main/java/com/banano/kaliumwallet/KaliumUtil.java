@@ -35,13 +35,41 @@ public class KaliumUtil {
     }
 
     /**
+     * Check if a seed is valid
+     *
+     * @return true if valid, false otherwise
+     */
+    public static boolean isValidSeed(String seed) {
+        if(seed.length() != 64) {
+            return false;
+        }
+
+        char[] hexDigits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F' };
+
+        for (char symbol : seed.toCharArray()) {
+            boolean found = false;
+            for (char hexDigit : hexDigits) {
+                if (symbol == hexDigit) {
+                    found = true;
+                    break;
+                }
+            }
+            if(!found) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Convert a wallet seed to private key
      *
      * @param seed Wallet seed
      * @return private key
      */
-    public static String seedToPrivate(String seed) {
-        return NanoHelper.toHex(NanoKeys.createPrivateKey(NanoHelper.toByteArray(seed), 0));
+    public static String seedToPrivate(String seed, int index) {
+        return NanoHelper.toHex(NanoKeys.createPrivateKey(NanoHelper.toByteArray(seed), index));
     }
 
     /**
